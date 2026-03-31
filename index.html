@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Class Memories</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0f0e0c; color: #f0e8d8; font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      20% { transform: translateX(-8px); } 40% { transform: translateX(8px); }
+      60% { transform: translateX(-5px); } 80% { transform: translateX(5px); }
+    }
+
+    .fade-in { animation: fadeIn 0.5s ease both; }
+    .shake { animation: shake 0.4s ease; }
+    .spinner {
+      width: 20px; height: 20px; border: 2px solid rgba(212,168,83,0.3);
+      border-top-color: #d4a853; border-radius: 50%;
+      animation: spin 0.7s linear infinite; display: inline-block; vertical-align: middle;
+    }
+
+    header {
+      padding: 36px 32px 28px;
+      border-bottom: 1px solid rgba(240,232,216,0.07);
+      display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+    }
+    .eyebrow { font-family: 'DM Mono', monospace; font-size: 11px; color: #d4a853; letter-spacing: 2px; margin-bottom: 8px; }
+    h1 { font-family: 'DM Serif Display', serif; font-size: clamp(28px, 5vw, 48px); font-weight: 400; }
+    .header-right { display: flex; align-items: center; gap: 12px; }
+    .photo-count { font-family: 'DM Mono', monospace; font-size: 12px; color: rgba(240,232,216,0.35); }
+    .admin-badge { font-family: 'DM Mono', monospace; font-size: 11px; color: #d4a853; letter-spacing: 1px; }
+
+    main { padding: 40px 32px; max-width: 1200px; margin: 0 auto; }
+
+    .card {
+      background: #1c1a17; border-radius: 12px;
+      border: 1px solid rgba(240,232,216,0.09);
+      padding: 24px; margin-bottom: 40px;
+    }
+    .card-title { font-family: 'DM Serif Display', serif; font-size: 20px; color: #d4a853; margin-bottom: 6px; }
+    .card-sub { font-family: 'DM Mono', monospace; font-size: 11px; color: rgba(240,232,216,0.35); letter-spacing: 0.5px; margin-bottom: 18px; }
+
+    input, textarea {
+      background: rgba(240,232,216,0.06); border: 1px solid rgba(240,232,216,0.15);
+      border-radius: 8px; color: #f0e8d8; font-family: 'DM Sans', sans-serif;
+      font-size: 14px; padding: 10px 14px; outline: none; transition: border 0.2s; width: 100%;
+    }
+    input:focus, textarea:focus { border-color: #d4a853; }
+    input::placeholder { color: rgba(240,232,216,0.3); }
+
+    .btn {
+      border: none; border-radius: 8px; cursor: pointer; font-family: 'DM Mono', monospace;
+      font-size: 13px; font-weight: 500; letter-spacing: 0.5px; padding: 11px 22px;
+      transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px;
+    }
+    .btn-gold { background: #d4a853; color: #0f0e0c; }
+    .btn-gold:hover { background: #e8be6a; transform: translateY(-1px); }
+    .btn-gold:disabled { background: #5a4a28; color: #8a7a5a; cursor: not-allowed; transform: none; }
+    .btn-ghost {
+      background: rgba(240,232,216,0.08); color: #f0e8d8;
+      border: 1px solid rgba(240,232,216,0.15) !important;
+    }
+    .btn-ghost:hover { background: rgba(240,232,216,0.14); }
+    .btn-danger { background: rgba(224,112,112,0.08); color: #e07070; border: 1px solid rgba(224,112,112,0.3) !important; }
+    .btn-danger:hover { background: rgba(224,112,112,0.18); }
+
+    .drop-zone {
+      border: 1px dashed rgba(240,232,216,0.2); border-radius: 8px;
+      padding: 28px; text-align: center; cursor: pointer; margin-bottom: 14px;
+      transition: all 0.2s;
+    }
+    .drop-zone:hover, .drop-zone.drag { border-color: #d4a853; background: rgba(212,168,83,0.04); }
+    .drop-icon { font-size: 28px; margin-bottom: 8px; }
+    .drop-text { color: rgba(240,232,216,0.5); font-size: 14px; }
+
+    .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+    .msg { font-family: 'DM Mono', monospace; font-size: 12px; margin-top: 10px; }
+    .msg-err { color: #e07070; } .msg-ok { color: #70c070; }
+
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 18px;
+    }
+
+    .photo-card {
+      background: #1c1a17; border-radius: 4px; overflow: hidden;
+      border: 1px solid rgba(240,232,216,0.07);
+      box-shadow: 0 6px 24px rgba(0,0,0,0.4); cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .photo-card:hover { transform: scale(1.02); }
+    .photo-card img { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; filter: sepia(8%); }
+    .photo-info { padding: 12px 14px 14px; }
+    .photo-caption { font-size: 14px; margin-bottom: 5px; }
+    .photo-date { font-family: 'DM Mono', monospace; font-size: 11px; color: rgba(240,232,216,0.35); }
+
+    .empty { text-align: center; padding: 70px 0; color: rgba(240,232,216,0.25); }
+    .empty p { font-family: 'DM Serif Display', serif; font-size: 22px; font-style: italic; }
+
+    /* Lightbox */
+    .lightbox {
+      position: fixed; inset: 0; background: rgba(10,9,8,0.95);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 100; padding: 20px; animation: fadeIn 0.2s ease;
+    }
+    .lightbox-inner { max-width: 860px; width: 100%; text-align: center; }
+    .lightbox img { max-height: 72vh; max-width: 100%; border-radius: 4px; filter: sepia(5%); }
+    .lightbox-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 18px; align-items: center; }
+    .lightbox-caption { color: #f0e8d8; font-size: 15px; margin-bottom: 10px; }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(10,9,8,0.9);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 200; padding: 20px; animation: fadeIn 0.2s ease;
+    }
+    .modal {
+      background: #1c1a17; border-radius: 12px; padding: 28px;
+      border: 1px solid rgba(240,232,216,0.1); max-width: 320px; width: 100%;
+    }
+    .modal h3 { font-family: 'DM Serif Display', serif; font-size: 20px; margin-bottom: 6px; }
+    .modal p { font-family: 'DM Mono', monospace; font-size: 11px; color: rgba(240,232,216,0.35); margin-bottom: 18px; }
+
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: #0f0e0c; }
+    ::-webkit-scrollbar-thumb { background: #3a3228; border-radius: 3px; }
+
+    @media (max-width: 500px) {
+      header, main { padding: 24px 16px; }
+      .card { padding: 18px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ─── CONFIGURE HERE ──────────────────────────────────────────── -->
+<script>
+  const SUPABASE_URL  = 'https://ysrqsrtaedwjnudutnoj.supabase.co'   // e.g. https://abcdef.supabase.co
+  const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlzcnFzcnRhZWR3am51ZHV0bm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3NzgwNDMsImV4cCI6MjA5MDM1NDA0M30.mNnSuTQhb696XXwgcGXFIfaR39tuHVDKmAy6GVJ8uUo'
+  const CLASS_PASSWORD = 'memories2025'        // share with classmates
+  const ADMIN_PASSWORD = 'admin@delete999'     // keep only for yourself
+  const BUCKET = 'memories'
+</script>
+<!-- ─────────────────────────────────────────────────────────────── -->
+
+<header>
+  <div>
+    <p class="eyebrow">CLASS OF MBA(2025-27)</p>
+    <h1>Our Memories</h1>
+  </div>
+  <div class="header-right">
+    <span class="photo-count" id="photo-count">0 photos</span>
+    <span class="admin-badge" id="admin-badge" style="display:none">⚙ ADMIN</span>
+    <button class="btn btn-ghost" id="admin-btn" onclick="openAdminModal()" style="font-size:11px;padding:7px 14px">Admin</button>
+  </div>
+</header>
+
+<main>
+  <!-- Upload / Password Gate -->
+  <div class="card" id="upload-card">
+    <div class="card-title">Add Memories</div>
+    <div class="card-sub" id="upload-sub">CLASSMATES ONLY — ENTER PASSWORD TO UPLOAD</div>
+
+    <!-- Password Gate -->
+    <div id="password-section">
+      <div class="row shake-target" style="max-width:360px">
+        <input type="password" id="class-pass-input" placeholder="Class password…" style="flex:1" onkeydown="if(event.key==='Enter') tryClassPassword()" />
+        <button class="btn btn-gold" onclick="tryClassPassword()">Unlock →</button>
+      </div>
+      <p class="msg msg-err" id="pass-err" style="display:none">Wrong password. Ask a classmate.</p>
+    </div>
+
+    <!-- Upload Form (hidden until unlocked) -->
+    <div id="upload-section" style="display:none">
+      <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()"
+        ondragover="event.preventDefault();this.classList.add('drag')"
+        ondragleave="this.classList.remove('drag')"
+        ondrop="handleDrop(event)">
+        <div class="drop-icon">📷</div>
+        <div class="drop-text" id="drop-text">Drop photos here or tap to browse</div>
+      </div>
+      <input type="file" id="file-input" accept="image/*" multiple style="display:none" onchange="handleFileSelect(this.files)" />
+      <input type="text" id="caption-input" placeholder="Caption (optional)…" style="margin-bottom:12px" />
+      <div class="row">
+        <button class="btn btn-gold" id="upload-btn" onclick="uploadPhotos()">Upload Photos</button>
+        <span class="spinner" id="upload-spinner" style="display:none"></span>
+      </div>
+      <p class="msg msg-err" id="upload-err" style="display:none"></p>
+      <p class="msg msg-ok" id="upload-ok" style="display:none">✓ Uploaded successfully!</p>
+    </div>
+  </div>
+
+  <!-- Search -->
+  <div style="margin-bottom:28px">
+    <input type="text" id="search-input" placeholder="Search captions…" style="max-width:300px" oninput="filterPhotos()" />
+  </div>
+
+  <!-- Gallery -->
+  <div id="loading" style="text-align:center;padding:60px 0"><span class="spinner"></span></div>
+  <div class="gallery" id="gallery" style="display:none"></div>
+  <div class="empty" id="empty" style="display:none"><p>No memories yet. Be the first to upload!</p></div>
+</main>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox" style="display:none" onclick="closeLightbox()">
+  <div class="lightbox-inner" onclick="event.stopPropagation()">
+    <img id="lightbox-img" src="" alt="" />
+    <p class="lightbox-caption" id="lightbox-caption"></p>
+    <div class="lightbox-actions">
+      <button class="btn btn-gold" onclick="downloadPhoto()">↓ Download</button>
+      <button class="btn btn-danger" id="delete-btn" style="display:none" onclick="confirmDelete()">🗑 Delete</button>
+      <button class="btn btn-ghost" onclick="closeLightbox()">Close</button>
+    </div>
+    <div id="confirm-delete" style="display:none;margin-top:12px" class="row" style="justify-content:center">
+      <span style="font-family:'DM Mono',monospace;font-size:12px;color:#e07070">Sure? This can't be undone.</span>
+      <button class="btn btn-danger" onclick="doDelete()">Yes, delete</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('confirm-delete').style.display='none';document.getElementById('delete-btn').style.display='flex'">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Admin Login Modal -->
+<div class="modal-overlay" id="admin-modal" style="display:none" onclick="closeAdminModal()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h3>Admin Login</h3>
+    <p>ONLY YOU HAVE THIS PASSWORD</p>
+    <div id="admin-shake-target">
+      <input type="password" id="admin-pass-input" placeholder="Admin password…" style="margin-bottom:12px" onkeydown="if(event.key==='Enter') tryAdminPassword()" />
+      <p class="msg msg-err" id="admin-err" style="display:none">Wrong password.</p>
+      <div class="row" style="margin-top:12px">
+        <button class="btn btn-gold" onclick="tryAdminPassword()" style="flex:1">Login</button>
+        <button class="btn btn-ghost" onclick="closeAdminModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ─── Init Supabase ───────────────────────────────────────────────
+  const { createClient } = supabase
+  const db = createClient(SUPABASE_URL, SUPABASE_KEY)
+
+  // ─── State ───────────────────────────────────────────────────────
+  let allPhotos = []
+  let selectedFiles = []
+  let currentPhoto = null
+  let isAdmin = sessionStorage.getItem('cm_admin') === '1'
+  let isUnlocked = sessionStorage.getItem('cm_unlocked') === '1'
+
+  // ─── Init ────────────────────────────────────────────────────────
+  window.onload = () => {
+    if (isUnlocked) showUploadForm()
+    if (isAdmin) showAdminUI()
+    fetchPhotos()
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeLightbox(); closeAdminModal() } })
+  }
+
+  // ─── Fetch Photos ────────────────────────────────────────────────
+  async function fetchPhotos() {
+    const { data } = await db.from('photos').select('*').order('created_at', { ascending: false })
+    allPhotos = data || []
+    renderGallery(allPhotos)
+    document.getElementById('photo-count').textContent = `${allPhotos.length} photo${allPhotos.length !== 1 ? 's' : ''}`
+  }
+
+  function renderGallery(photos) {
+    document.getElementById('loading').style.display = 'none'
+    const gallery = document.getElementById('gallery')
+    const empty = document.getElementById('empty')
+
+    if (!photos.length) {
+      gallery.style.display = 'none'
+      empty.style.display = 'block'
+      empty.querySelector('p').textContent = document.getElementById('search-input').value
+        ? 'No photos match your search.' : 'No memories yet. Be the first to upload!'
+      return
+    }
+
+    empty.style.display = 'none'
+    gallery.style.display = 'grid'
+    gallery.innerHTML = photos.map((p, i) => {
+      const date = new Date(p.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      return `
+        <div class="photo-card fade-in" style="animation-delay:${i * 40}ms" onclick="openLightbox('${p.id}')">
+          <img src="${p.public_url}" alt="${p.caption || ''}" loading="lazy" />
+          <div class="photo-info">
+            ${p.caption ? `<p class="photo-caption">${p.caption}</p>` : ''}
+            <p class="photo-date">${date}</p>
+          </div>
+        </div>`
+    }).join('')
+  }
+
+  function filterPhotos() {
+    const q = document.getElementById('search-input').value.toLowerCase()
+    renderGallery(q ? allPhotos.filter(p => (p.caption || '').toLowerCase().includes(q)) : allPhotos)
+  }
+
+  // ─── Password Gate ───────────────────────────────────────────────
+  function tryClassPassword() {
+    const val = document.getElementById('class-pass-input').value
+    if (val === CLASS_PASSWORD) {
+      sessionStorage.setItem('cm_unlocked', '1')
+      isUnlocked = true
+      showUploadForm()
+    } else {
+      const el = document.querySelector('.shake-target')
+      el.classList.remove('shake')
+      void el.offsetWidth
+      el.classList.add('shake')
+      document.getElementById('pass-err').style.display = 'block'
+      document.getElementById('class-pass-input').value = ''
+    }
+  }
+
+  function showUploadForm() {
+    document.getElementById('password-section').style.display = 'none'
+    document.getElementById('upload-section').style.display = 'block'
+    document.getElementById('upload-sub').textContent = 'DRAG & DROP OR BROWSE PHOTOS'
+  }
+
+  // ─── File Handling ───────────────────────────────────────────────
+  function handleDrop(e) {
+    e.preventDefault()
+    document.getElementById('drop-zone').classList.remove('drag')
+    selectedFiles = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'))
+    updateDropText()
+  }
+
+  function handleFileSelect(files) {
+    selectedFiles = Array.from(files)
+    updateDropText()
+  }
+
+  function updateDropText() {
+    document.getElementById('drop-text').textContent =
+      selectedFiles.length ? `${selectedFiles.length} photo${selectedFiles.length > 1 ? 's' : ''} selected` : 'Drop photos here or tap to browse'
+  }
+
+  // ─── Upload ──────────────────────────────────────────────────────
+  async function uploadPhotos() {
+    if (!selectedFiles.length) return
+    const btn = document.getElementById('upload-btn')
+    const spinner = document.getElementById('upload-spinner')
+    const err = document.getElementById('upload-err')
+    const ok = document.getElementById('upload-ok')
+    const caption = document.getElementById('caption-input').value.trim()
+
+    btn.disabled = true; spinner.style.display = 'inline-block'
+    err.style.display = 'none'; ok.style.display = 'none'
+
+    try {
+      for (const file of selectedFiles) {
+        const ext = file.name.split('.').pop()
+        const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+
+        const { error: storageErr } = await db.storage.from(BUCKET).upload(filename, file, { contentType: file.type })
+        if (storageErr) throw storageErr
+
+        const { data: { publicUrl } } = db.storage.from(BUCKET).getPublicUrl(filename)
+        const { error: dbErr } = await db.from('photos').insert({ filename, caption: caption || null, public_url: publicUrl })
+        if (dbErr) throw dbErr
+      }
+
+      selectedFiles = []
+      document.getElementById('caption-input').value = ''
+      document.getElementById('file-input').value = ''
+      updateDropText()
+      ok.style.display = 'block'
+      setTimeout(() => ok.style.display = 'none', 3000)
+      fetchPhotos()
+    } catch (e) {
+      err.textContent = e.message || 'Upload failed. Check your Supabase setup.'
+      err.style.display = 'block'
+    } finally {
+      btn.disabled = false; spinner.style.display = 'none'
+    }
+  }
+
+  // ─── Lightbox ────────────────────────────────────────────────────
+  function openLightbox(id) {
+    currentPhoto = allPhotos.find(p => p.id === id)
+    if (!currentPhoto) return
+    document.getElementById('lightbox-img').src = currentPhoto.public_url
+    document.getElementById('lightbox-caption').textContent = currentPhoto.caption || ''
+    document.getElementById('delete-btn').style.display = isAdmin ? 'flex' : 'none'
+    document.getElementById('confirm-delete').style.display = 'none'
+    document.getElementById('lightbox').style.display = 'flex'
+  }
+
+  function closeLightbox() {
+    document.getElementById('lightbox').style.display = 'none'
+    currentPhoto = null
+  }
+
+  async function downloadPhoto() {
+    if (!currentPhoto) return
+    const res = await fetch(currentPhoto.public_url)
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = currentPhoto.filename || 'memory.jpg'; a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  function confirmDelete() {
+    document.getElementById('delete-btn').style.display = 'none'
+    document.getElementById('confirm-delete').style.display = 'flex'
+  }
+
+  async function doDelete() {
+    if (!currentPhoto) return
+    await db.storage.from(BUCKET).remove([currentPhoto.filename])
+    await db.from('photos').delete().eq('id', currentPhoto.id)
+    allPhotos = allPhotos.filter(p => p.id !== currentPhoto.id)
+    closeLightbox()
+    renderGallery(allPhotos)
+    document.getElementById('photo-count').textContent = `${allPhotos.length} photo${allPhotos.length !== 1 ? 's' : ''}`
+  }
+
+  // ─── Admin ───────────────────────────────────────────────────────
+  function openAdminModal() { document.getElementById('admin-modal').style.display = 'flex'; setTimeout(() => document.getElementById('admin-pass-input').focus(), 100) }
+  function closeAdminModal() { document.getElementById('admin-modal').style.display = 'none'; document.getEl
